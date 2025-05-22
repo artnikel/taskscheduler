@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 
+	"github.com/artnikel/taskscheduler/constants"
 	"github.com/artnikel/taskscheduler/scheduler"
 	"github.com/artnikel/taskscheduler/tasks"
 	"github.com/labstack/echo/v4"
@@ -41,10 +42,10 @@ func (h *Handler) GetTaskStatus(c echo.Context) error {
 		"id":     task.ID,
 		"status": task.Status,
 	}
-	if task.Status == scheduler.StatusDone {
+	if task.Status == constants.StatusDone {
 		resp["result"] = task.Result
 	}
-	if task.Status == scheduler.StatusFailed {
+	if task.Status == constants.StatusFailed {
 		resp["error"] = task.Err.Error()
 	}
 

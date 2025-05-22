@@ -3,30 +3,18 @@ package scheduler
 import (
 	"sync"
 
+	"github.com/artnikel/taskscheduler/constants"
+	"github.com/artnikel/taskscheduler/models"
 	"github.com/google/uuid"
 )
 
-type TaskStatus string
 
-const (
-	StatusPending TaskStatus = "pending"
-	StatusRunning TaskStatus = "running"
-	StatusDone    TaskStatus = "done"
-	StatusFailed  TaskStatus = "failed"
-)
-
-type Task struct {
-	ID     string
-	Status TaskStatus
-	Result string
-	Err    error
-}
 
 type TaskFunc func() (string, error)
 
 type Scheduler struct {
 	maxConcurrent int
-	tasks         map[string]*Task
+	tasks         map[string]*models.Task
 	taskLock      sync.RWMutex
 	sem           chan struct{}
 }
@@ -34,16 +22,16 @@ type Scheduler struct {
 func NewScheduler(maxConcurrent int) *Scheduler {
 	return &Scheduler{
 		maxConcurrent: maxConcurrent,
-		tasks:         make(map[string]*Task),
+		tasks:         make(map[string]*models.Task),
 		sem:           make(chan struct{}, maxConcurrent),
 	}
 }
 
 func (s *Scheduler) AddTask(fn TaskFunc) string {
 	taskID := uuid.NewString()
-	task := &Task{
+	task := &models.Task{
 		ID:     taskID,
-		Status: StatusPending,
+		Status: constants.StatusPending,
 	}
 
 	s.taskLock.Lock()
@@ -64,7 +52,7 @@ func (s *Scheduler) runTask(taskID string, fn TaskFunc) {
 		s.taskLock.Unlock()
 		return
 	}
-	task.Status = StatusRunning
+	task.Status = constants.StatusRunning
 	s.taskLock.Unlock()
 
 	result, err := fn()
@@ -73,15 +61,15 @@ func (s *Scheduler) runTask(taskID string, fn TaskFunc) {
 	defer s.taskLock.Unlock()
 
 	if err != nil {
-		task.Status = StatusFailed
+		task.Status = constants.StatusFailed
 		task.Err = err
 		return
 	}
-	task.Status = StatusDone
+	task.Status = constants.StatusDone
 	task.Result = result
 }
 
-func (s *Scheduler) GetTask(id string) (*Task, bool) {
+func (s *Scheduler) GetTask(id string) (*models.Task, bool) {
 	s.taskLock.RLock()
 	defer s.taskLock.RUnlock()
 	task, ok := s.tasks[id]
