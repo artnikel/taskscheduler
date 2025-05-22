@@ -27,21 +27,6 @@ func NewScheduler(maxConcurrent int) *Scheduler {
 	}
 }
 
-func (s *Scheduler) AddTask(fn TaskFunc) string {
-	taskID := uuid.NewString()
-	task := &models.Task{
-		ID:     taskID,
-		Status: constants.StatusPending,
-	}
-
-	s.taskLock.Lock()
-	s.tasks[taskID] = task
-	s.taskLock.Unlock()
-
-	go s.runTask(taskID, fn)
-	return taskID
-}
-
 func (s *Scheduler) runTask(taskID string, fn TaskFunc) {
 	s.sem <- struct{}{} 
 	defer func() { <-s.sem }()
@@ -69,9 +54,43 @@ func (s *Scheduler) runTask(taskID string, fn TaskFunc) {
 	task.Result = result
 }
 
+func (s *Scheduler) AddTask(fn TaskFunc) string {
+	taskID := uuid.NewString()
+	task := &models.Task{
+		ID:     taskID,
+		Status: constants.StatusPending,
+	}
+
+	s.taskLock.Lock()
+	s.tasks[taskID] = task
+	s.taskLock.Unlock()
+
+	go s.runTask(taskID, fn)
+	return taskID
+}
+
 func (s *Scheduler) GetTask(id string) (*models.Task, bool) {
 	s.taskLock.RLock()
 	defer s.taskLock.RUnlock()
 	task, ok := s.tasks[id]
 	return task, ok
 }
+
+func (s *Scheduler) GetStats() map[constants.TaskStatus]int {
+	stats := map[constants.TaskStatus]int{
+		constants.StatusPending: 0,
+		constants.StatusRunning: 0,
+		constants.StatusDone:    0,
+		constants.StatusFailed:  0,
+	}
+
+	s.taskLock.RLock()
+	defer s.taskLock.RUnlock()
+
+	for _, task := range s.tasks {
+		stats[task.Status]++
+	}
+
+	return stats
+}
+

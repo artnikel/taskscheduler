@@ -23,6 +23,8 @@ func main() {
 
 	e.POST("/tasks/ping", handler.CreatePingTask)
 	e.GET("/tasks/:id", handler.GetTaskStatus)
+	e.GET("/tasks/stats", handler.GetStats)
+
 
 	e.Logger.Fatal(e.Start(":8080"))
 }

@@ -51,3 +51,9 @@ func (h *Handler) GetTaskStatus(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, resp)
 }
+
+func (h *Handler) GetStats(c echo.Context) error {
+	stats := h.Scheduler.GetStats()
+	return c.JSON(http.StatusOK, stats)
+}
+
