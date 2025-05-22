@@ -1,12 +1,13 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
+	"strings"
 
-	"github.com/artnikel/taskscheduler/constants"
+	"github.com/artnikel/taskscheduler/internal/logging"
 	"github.com/artnikel/taskscheduler/scheduler"
 	"github.com/artnikel/taskscheduler/tasks"
-	"github.com/labstack/echo/v4"
 )
 
 type Handler struct {
@@ -21,33 +22,59 @@ type CreateTaskRequest struct {
 	Address string `json:"address"`
 }
 
-func (h *Handler) CreatePingTask(c echo.Context) error {
-	var req CreateTaskRequest
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request"})
+func (h *Handler) CreatePingTask(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		logging.Error.Println("method not allowed")
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
 	}
-
-	taskID := h.Scheduler.AddTask(tasks.MakePingTask(req.Address))
-	return c.JSON(http.StatusCreated, map[string]string{"task_id": taskID})
+	var req struct {
+		Address string `json:"address"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Address == "" {
+		logging.Error.Println("invalid request body:", err)
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	id := h.Scheduler.AddTask(tasks.MakePingTask(req.Address))
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(map[string]string{"task_id": id})
 }
 
-func (h *Handler) GetTaskStatus(c echo.Context) error {
-	id := c.Param("id")
+func (h *Handler) GetTaskStatus(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimPrefix(r.URL.Path, "/tasks/")
+	if id == "" {
+		logging.Error.Println("missing task ID in request")
+		http.Error(w, "missing task ID", http.StatusBadRequest)
+		return
+	}
 	task, ok := h.Scheduler.GetTask(id)
 	if !ok {
-		return c.JSON(http.StatusNotFound, map[string]string{"error": "task not found"})
+		logging.Error.Println("task not found for ID:", id)
+		http.Error(w, "task not found", http.StatusNotFound)
+		return
 	}
-
 	resp := map[string]interface{}{
 		"id":     task.ID,
 		"status": task.Status,
 	}
-	if task.Status == constants.StatusDone {
+	if task.Result != "" {
+		logging.Error.Println("Task", id, "task result is nil")
 		resp["result"] = task.Result
 	}
-	if task.Status == constants.StatusFailed {
+	if task.Err != nil {
+		logging.Error.Println("Task", id, "failed with error:", task.Err)
 		resp["error"] = task.Err.Error()
 	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(resp)
+}
 
-	return c.JSON(http.StatusOK, resp)
+func (h *Handler) GetStats(w http.ResponseWriter, r *http.Request) {
+	stats := h.Scheduler.GetStats()
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(stats)
 }
