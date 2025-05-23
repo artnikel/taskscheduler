@@ -1,0 +1,6 @@
+ERROR: 2025/05/23 18:46:47 handlers.go:35: invalid request body: <nil>
+ERROR: 2025/05/23 18:46:47 handlers.go:63: Task 8f5a0ba5-1931-476e-b49e-a51b2e343e7c task result is nil
+ERROR: 2025/05/23 18:46:47 handlers.go:54: task not found for ID: nonexistent
+ERROR: 2025/05/23 18:47:17 handlers.go:35: invalid request body: <nil>
+ERROR: 2025/05/23 18:47:23 handlers.go:63: Task 8df77869-e75a-451b-a76b-4865cd0cab4f task result is nil
+ERROR: 2025/05/23 18:47:25 handlers.go:54: task not found for ID: nonexistent
