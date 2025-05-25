@@ -2,9 +2,13 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/artnikel/taskscheduler/api"
@@ -52,8 +56,23 @@ func main() {
 		WriteTimeout: constants.ServerTimeout,
 	}
 
-	logger.Info.Printf("Server started at :%d\n", cfg.Server.Port)
+	stopped := make(chan struct{})
+	go func() {
+		sigint := make(chan os.Signal, 1)
+		signal.Notify(sigint, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+		<-sigint
+		ctx, cancel := context.WithTimeout(context.Background(), constants.ServerTimeout)
+		defer cancel()
+		if err := server.Shutdown(ctx); err != nil {
+			logger.Error.Fatalf("http server shutdown error %v", err)
+		}
+		close(stopped)
+	}()
+
+	logger.Info.Printf("starting HTTP server on :%d\n", cfg.Server.Port)
 	if err := server.ListenAndServe(); err != nil {
-		logger.Error.Fatalf("server error: %v", err)
+		logger.Error.Fatalf("http server not listening: %v", err)
 	}
+
+	<-stopped
 }
