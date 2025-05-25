@@ -1,3 +1,4 @@
+// Package scheduler manages task execution with concurrency control
 package scheduler
 
 import (
@@ -8,10 +9,10 @@ import (
 	"github.com/google/uuid"
 )
 
-
-
+// TaskFunc defines the function signature for a scheduled task
 type TaskFunc func() (string, error)
 
+// Scheduler handles task management and concurrent execution
 type Scheduler struct {
 	maxConcurrent int
 	tasks         map[string]*models.Task
@@ -19,6 +20,7 @@ type Scheduler struct {
 	sem           chan struct{}
 }
 
+// NewScheduler creates a new Scheduler with the given concurrency limit
 func NewScheduler(maxConcurrent int) *Scheduler {
 	return &Scheduler{
 		maxConcurrent: maxConcurrent,
@@ -28,7 +30,7 @@ func NewScheduler(maxConcurrent int) *Scheduler {
 }
 
 func (s *Scheduler) runTask(taskID string, fn TaskFunc) {
-	s.sem <- struct{}{} 
+	s.sem <- struct{}{}
 	defer func() { <-s.sem }()
 
 	s.taskLock.Lock()
@@ -54,6 +56,7 @@ func (s *Scheduler) runTask(taskID string, fn TaskFunc) {
 	task.Result = result
 }
 
+// AddTask adds a new task to the scheduler and runs it asynchronously
 func (s *Scheduler) AddTask(fn TaskFunc) string {
 	taskID := uuid.NewString()
 	task := &models.Task{
@@ -69,6 +72,7 @@ func (s *Scheduler) AddTask(fn TaskFunc) string {
 	return taskID
 }
 
+// GetTask returns the task with the given ID, if it exists
 func (s *Scheduler) GetTask(id string) (*models.Task, bool) {
 	s.taskLock.RLock()
 	defer s.taskLock.RUnlock()
@@ -76,6 +80,7 @@ func (s *Scheduler) GetTask(id string) (*models.Task, bool) {
 	return task, ok
 }
 
+// GetStats returns the count of tasks by their status
 func (s *Scheduler) GetStats() map[constants.TaskStatus]int {
 	stats := map[constants.TaskStatus]int{
 		constants.StatusPending: 0,
@@ -93,4 +98,3 @@ func (s *Scheduler) GetStats() map[constants.TaskStatus]int {
 
 	return stats
 }
-
