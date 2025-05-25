@@ -3,9 +3,10 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 	"time"
 
@@ -14,18 +15,16 @@ import (
 	"github.com/artnikel/taskscheduler/scheduler"
 )
 
-func init() {
-	_ = logging.Init("testlogs") 
+func NewLoggerForTest() *logging.Logger {
+	return &logging.Logger{
+		Info:  log.New(io.Discard, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile),
+		Error: log.New(io.Discard, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile),
+	}
 }
-
-func TestMain(m *testing.M) {
-	_ = logging.Init("testlogs")
-	os.Exit(m.Run())
-}
-
 func TestCreatePingTask_Valid(t *testing.T) {
 	s := scheduler.NewScheduler(1)
-	h := NewHandler(s)
+	logger := NewLoggerForTest()
+	h := NewHandler(s, logger)
 
 	body := []byte(`{"address": "example.com"}`)
 	req := httptest.NewRequest(http.MethodPost, "/tasks", bytes.NewBuffer(body))
@@ -45,7 +44,8 @@ func TestCreatePingTask_Valid(t *testing.T) {
 
 func TestCreatePingTask_Invalid(t *testing.T) {
 	s := scheduler.NewScheduler(1)
-	h := NewHandler(s)
+	logger := NewLoggerForTest()
+	h := NewHandler(s, logger)
 
 	req := httptest.NewRequest(http.MethodPost, "/tasks", bytes.NewBuffer([]byte(`{}`)))
 	w := httptest.NewRecorder()
@@ -59,7 +59,8 @@ func TestCreatePingTask_Invalid(t *testing.T) {
 
 func TestGetTaskStatus_Valid(t *testing.T) {
 	s := scheduler.NewScheduler(1)
-	h := NewHandler(s)
+	logger := NewLoggerForTest()
+	h := NewHandler(s, logger)
 
 	id := s.AddTask(func() (string, error) {
 		time.Sleep(10 * time.Millisecond)
@@ -67,7 +68,7 @@ func TestGetTaskStatus_Valid(t *testing.T) {
 	})
 	time.Sleep(50 * time.Millisecond)
 
-	req := httptest.NewRequest(http.MethodGet, "/tasks/"+id, nil)
+	req := httptest.NewRequest(http.MethodGet, "/tasks/"+id, http.NoBody)
 	w := httptest.NewRecorder()
 	h.GetTaskStatus(w, req)
 
@@ -84,9 +85,10 @@ func TestGetTaskStatus_Valid(t *testing.T) {
 
 func TestGetTaskStatus_NotFound(t *testing.T) {
 	s := scheduler.NewScheduler(1)
-	h := NewHandler(s)
+	logger := NewLoggerForTest()
+	h := NewHandler(s, logger)
 
-	req := httptest.NewRequest(http.MethodGet, "/tasks/nonexistent", nil)
+	req := httptest.NewRequest(http.MethodGet, "/tasks/nonexistent", http.NoBody)
 	w := httptest.NewRecorder()
 	h.GetTaskStatus(w, req)
 
@@ -98,7 +100,8 @@ func TestGetTaskStatus_NotFound(t *testing.T) {
 
 func TestGetStats(t *testing.T) {
 	s := scheduler.NewScheduler(1)
-	h := NewHandler(s)
+	logger := NewLoggerForTest()
+	h := NewHandler(s, logger)
 
 	_ = s.AddTask(func() (string, error) {
 		time.Sleep(10 * time.Millisecond)
@@ -106,7 +109,7 @@ func TestGetStats(t *testing.T) {
 	})
 	time.Sleep(50 * time.Millisecond)
 
-	req := httptest.NewRequest(http.MethodGet, "/stats", nil)
+	req := httptest.NewRequest(http.MethodGet, "/stats", http.NoBody)
 	w := httptest.NewRecorder()
 	h.GetStats(w, req)
 

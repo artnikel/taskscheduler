@@ -1,27 +1,36 @@
+// Package logging provides a simple logging setup for informational and error messages
 package logging
 
 import (
 	"log"
 	"os"
+	"path/filepath"
+
+	"github.com/artnikel/taskscheduler/constants"
 )
 
-var (
+// Logger holds separate loggers for informational and error messages
+type Logger struct {
 	Info  *log.Logger
 	Error *log.Logger
-)
+}
 
-func Init(dir string) error {
-	err := os.MkdirAll(dir, 0755)
+// NewLogger sets up the logging system
+func NewLogger(dir string) (*Logger, error) {
+	err := os.MkdirAll(dir, constants.DirPerm)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	logFile, err := os.OpenFile(dir+"/app.log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	logPath := filepath.Join(dir, "app.log")
+	// #nosec G304 -- logPath is controlled and not user-influenced
+	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, constants.FilePerm)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	Info = log.New(logFile, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
-	Error = log.New(logFile, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile)
-	return nil
+	return &Logger{
+		Info:  log.New(logFile, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile),
+		Error: log.New(logFile, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile),
+	}, nil
 }
