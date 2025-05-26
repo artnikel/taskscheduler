@@ -86,3 +86,24 @@ func (h *Handler) GetStats(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(stats)
 }
+
+// CreateStatusTask handles POST requests to add a new HTTP GET task
+func (h *Handler) CreateStatusTask(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		h.Logger.Error.Println("method not allowed")
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var req struct {
+		URL string `json:"url"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.URL == "" {
+		h.Logger.Error.Println("invalid request body:", err)
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	id := h.Scheduler.AddTask(tasks.MakeGetStatusTask(req.URL))
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(map[string]string{"task_id": id})
+}
