@@ -34,9 +34,11 @@ func main() {
 	handler := api.NewHandler(sched, logger)
 
 	mux := http.NewServeMux()
+
 	mux.HandleFunc("/tasks/ping", handler.CreatePingTask)
 	mux.HandleFunc("/tasks/", handler.GetTaskStatus)
 	mux.HandleFunc("/tasks/stats", handler.GetStats)
+	mux.HandleFunc("/tasks/http/status", handler.CreateStatusTask)
 
 	go func() { // worker for server load
 		ticker := time.NewTicker(time.Second)
